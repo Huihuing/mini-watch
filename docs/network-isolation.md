@@ -21,4 +21,4 @@
 
 브라우저 DNS 실패와 네트워크 상태가 아닌 API 내부에서 수행한 실제 getent 결과를 사용합니다. 정상 복구 뒤의 HTTP 호출 및 데이터베이스 조회는 scripts/smoke_test.py로 별도로 검증합니다.
 
-기존 PR #1(https://github.com/Huihuing/mini-watch/pull/1) 첫 실행에서 DNS 복구는 성공했지만, API 교체 직후 Nginx가 이전 주소를 가리켜 HTTP 502가 발생했습니다. 당시 `python | tee` 파이프라인은 오류를 가려 CI가 성공으로 표시되는 문제가 있었습니다. 후속 수정에서 `set -o pipefail`을 사용하고 gateway를 함께 재생성한 후 전체 복구 테스트를 다시 수행합니다. **첫 PR의 복구 후 HTTP 전송은 성공 증빙으로 사용하지 않습니다.**
+기존 PR #1(https://github.com/Huihuing/mini-watch/pull/1) 첫 실행에서 DNS 복구는 성공했지만, API 교체 직후 Nginx가 이전 주소를 가리켜 HTTP 502가 발생했습니다. 당시 `python | tee` 파이프라인은 오류를 가려 CI가 성공으로 표시되는 문제가 있었습니다. 후속 PR #2(https://github.com/Huihuing/mini-watch/pull/2)에서 `set -o pipefail`을 사용하고 gateway를 함께 재생성해 전체 복구 테스트를 다시 수행했습니다. [CI 실행](https://github.com/Huihuing/mini-watch/actions/runs/38214942407)은 성공했으며 `smoke-after-network-restore.txt`에서 실제 로그인 실패/성공, 이벤트 전달, 메모 저장·재조회 PASS를 확인했습니다. 상세 출력은 [evidence/advanced-validation.md](../evidence/advanced-validation.md)에 보존했습니다. **첫 PR의 복구 후 HTTP 전송은 성공 증빙으로 사용하지 않습니다.**

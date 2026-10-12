@@ -114,6 +114,14 @@ Ubuntu GitHub Actions 호스팅 러너에서 [통합 테스트 #1](https://githu
 
 주의: CI는 브라우저 UI 스크린샷을 자동 수집하지 않습니다. 수업 제출 시 Windows PC에서 일반/감시 화면을 실제로 열고 감시 목록의 이벤트 및 메모 새로고침 화면을 추가 캡처하면 증빙이 더 충실해집니다.
 
+## 선택 심화 — 실제 검증 결과 (2026-10-12)
+
+- [PR #1](https://github.com/Huihuing/mini-watch/pull/1)에서 DB DNS 분리와 공유망 분리/복구를 도입했습니다.
+- 첫 심화 CI에서 API를 강제 재생성한 뒤 Nginx가 이전 IP를 참조해 HTTP 502가 발생했으며, Python 테스트 파이프라인이 오류를 가렸습니다. **이를 HTTP 복구 성공으로 인정하지 않았습니다.**
+- [PR #2](https://github.com/Huihuing/mini-watch/pull/2)에서 Nginx gateway도 함께 재생성하고 set -o pipefail로 테스트 실패를 감지하도록 수정했습니다.
+- [수정 검증 실행](https://github.com/Huihuing/mini-watch/actions/runs/38214942407)은 최종 success였습니다. DB 격리, 네트워크 분리 시 DNS 실패, 복원 시 DNS 성공, HTTP 신규 로그인 실패·성공 기록 전송, 메모와 데이터 재생성 보존을 모두 검증했습니다.
+- 실제 추가 검사 출력은 [evidence/advanced-validation.md](evidence/advanced-validation.md)와 해당 실행의 **docker-compose-evidence** 아티팩트에서 확인할 수 있습니다.
+
 ## 최종 종료
 
 ~~~powershell
@@ -125,6 +133,8 @@ docker compose -f compose-monitor.yaml down
 ## Git 작업 기록
 
 - 앱/Compose 구축 커밋: 32fd27ea6965d535f47c6f3ca1451e8fb9de34de
+- 심화 테스트 추가/검증: PR #1 및 PR #2
+- Nginx 복구 테스트 수정 병합 커밋: bc4050ad843d3231cb62dfaa1049b1d3e67898f0
 - 변경 요지: Day06 소스 통합, Flask 컨테이너 주소/기록 전송 수정, 외부 공유망·DB 볼륨·헬스체크 구성, Nginx/Next.js production 구성, 검증 스크립트/README 추가.
 - 저장소: https://github.com/Huihuing/mini-watch (비공개).
 
