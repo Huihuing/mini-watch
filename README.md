@@ -94,20 +94,25 @@ python scripts/smoke_test.py --after-restart | Tee-Object evidence/smoke-after.t
 
 브라우저에서도 일반의 실패/성공을 직접 만들고, 감시에서 login_failure 401 및 login_success 200 기록을 확인하세요. 메모 내용은 **로그인 실패와 성공을 확인했다**입니다. 저장 후 화면을 새로고침하고 목록 불러오기로 유지되는지 확인하고, 화면 캡처를 evidence 폴더에 남기세요.
 
-### 실제 실행 결과 현황
+### 실제 실행 결과 — GitHub Actions (2026-10-12)
 
-이 커밋의 작성 환경에는 Docker 실행기가 없어 다음 항목은 **미실행/미검증**입니다. 코드가 존재하는 것만으로 20개 필수 미션을 통과했다고 주장하지 않습니다.
+Ubuntu GitHub Actions 호스팅 러너에서 [통합 테스트 #1](https://github.com/Huihuing/mini-watch/actions/runs/38213949100)을 실행했고 최종 **success**를 확인했습니다. 이는 로컬 Windows PC 실행 화면이 아니라 **실제 CI Docker 환경**의 검증 결과입니다.
 
-| 확인 항목 | 상태 |
+| 확인 항목 | 실제 결과 |
 | --- | --- |
-| Compose 두 파일과 네트워크/볼륨/healthcheck 정적 구성 | 소스 검토 완료, docker compose config 미실행 |
-| Docker build, ps, API 및 Next.js 서비스 가동 | 미실행 |
-| 공유 망 inspect 및 getent 실제 출력 | 미실행 |
-| 신규 로그인 실패·성공 및 감시 이벤트 | 미실행 |
-| 감시 메모와 새로고침 후 조회 | 미실행 |
-| down 후 재생성, DB 이벤트·메모 보존 | 미실행 |
+| config --quiet (두 Compose) / Python compileall | PASS |
+| Flask 두 이미지, Next.js production 이미지, DB/gateway 빌드·실행 | PASS |
+| PostgreSQL 두 DB healthcheck | healthy / healthy |
+| Docker ps에서 PC에 공개된 포트 | 두 gateway의 127.0.0.1:8081, 127.0.0.1:8082만 |
+| docker network inspect m5d1-events | 일반 API와 감시 API 컨테이너 2개만 참여 |
+| 일반 API에서 getent hosts monitor-api | 172.18.0.2 monitor-api (러너마다 IP 다름) |
+| 신규 로그인 실패·성공 | login_failure 401 및 login_success 200 확인 |
+| 감시 메모 새 HTTP 요청으로 재조회 | PASS |
+| 두 Compose를 down (-v 없이) → up 재생성 후 이벤트·메모 유지 | PASS |
 
-실제 실행이 가능한 PC에서 생성한 evidence/*.txt와 필요한 화면 캡처를 커밋해 제출하세요. 심화 미션은 필수 실행 검증을 마친 뒤에 검토합니다.
+명령과 캡처한 실제 출력 발췌는 [evidence/validation.md](evidence/validation.md), 전체 ps/network inspect/API logs/테스트 결과는 해당 Actions 실행의 **docker-compose-evidence** 아티팩트에서 확인할 수 있습니다. API 검사 스크립트는 신규 로그인 이벤트와 메모를 실제 DB에서 다시 조회하며, 단순히 코드 내용만 검사하지 않습니다.
+
+주의: CI는 브라우저 UI 스크린샷을 자동 수집하지 않습니다. 수업 제출 시 Windows PC에서 일반/감시 화면을 실제로 열고 감시 목록의 이벤트 및 메모 새로고침 화면을 추가 캡처하면 증빙이 더 충실해집니다.
 
 ## 최종 종료
 
@@ -119,8 +124,8 @@ docker compose -f compose-monitor.yaml down
 
 ## Git 작업 기록
 
-- 앱/Compose 구축 커밋: 아래 커밋 기록에 명시.
+- 앱/Compose 구축 커밋: 32fd27ea6965d535f47c6f3ca1451e8fb9de34de
 - 변경 요지: Day06 소스 통합, Flask 컨테이너 주소/기록 전송 수정, 외부 공유망·DB 볼륨·헬스체크 구성, Nginx/Next.js production 구성, 검증 스크립트/README 추가.
 - 저장소: https://github.com/Huihuing/mini-watch (비공개).
 
-커밋 링크는 추가 문서 커밋에서 확정합니다.
+- [Docker 앱 구현 커밋](https://github.com/Huihuing/mini-watch/commit/32fd27ea6965d535f47c6f3ca1451e8fb9de34de) / [실제 CI 검증 #1](https://github.com/Huihuing/mini-watch/actions/runs/38213949100)
