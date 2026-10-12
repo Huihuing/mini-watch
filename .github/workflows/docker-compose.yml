@@ -2,6 +2,8 @@ name: Docker Compose integration
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -51,6 +53,27 @@ jobs:
 
       - name: Verify fresh login events and note
         run: python scripts/smoke_test.py | tee evidence/smoke-before.txt
+
+      - name: Optional - DB DNS isolation
+        run: |
+          docker compose -f compose-general.yaml exec -T general-api getent hosts general-db | tee evidence/dns-general-db.txt
+          if docker compose -f compose-general.yaml exec -T general-api getent hosts monitor-db > evidence/dns-monitor-db.txt; then
+            echo "FAIL: monitor-db must be isolated from general-api"
+            exit 1
+          fi
+          echo "PASS general-db resolves, monitor-db does not" | tee evidence/db-isolation.txt
+
+      - name: Optional - disconnect shared network and restore via Compose
+        run: |
+          docker network disconnect m5d1-events m5d1-general-general-api-1
+          if docker compose -f compose-general.yaml exec -T general-api getent hosts monitor-api; then
+            echo "FAIL: monitor-api still resolved after disconnection"
+            exit 1
+          fi
+          echo "PASS monitor-api DNS lookup fails after m5d1-events disconnect" | tee evidence/disconnect.txt
+          docker compose -f compose-general.yaml up -d --force-recreate --no-deps general-api
+          docker compose -f compose-general.yaml exec -T general-api getent hosts monitor-api | tee evidence/dns-restored.txt
+          python scripts/smoke_test.py | tee evidence/smoke-after-network-restore.txt
 
       - name: Recreate without removing volumes
         run: |
