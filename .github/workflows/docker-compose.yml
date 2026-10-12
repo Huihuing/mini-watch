@@ -1,0 +1,91 @@
+name: Docker Compose integration
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create external events network
+        run: docker network create m5d1-events
+
+      - name: Validate both Compose files
+        run: |
+          docker compose -f compose-monitor.yaml config --quiet
+          docker compose -f compose-general.yaml config --quiet
+          python -m compileall -q general monitor/backend scripts/smoke_test.py
+
+      - name: Start monitor first
+        run: |
+          docker compose -f compose-monitor.yaml up -d --build
+          for i in $(seq 1 50); do
+            if curl -fsS http://localhost:8082/api/auth/me -o /dev/null; then exit 0; fi
+            sleep 3
+          done
+          docker compose -f compose-monitor.yaml logs --tail=100
+          exit 1
+
+      - name: Start general and prepare demo accounts
+        run: |
+          docker compose -f compose-general.yaml up -d --build
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8081/api/auth/me -o /dev/null; then break; fi
+            sleep 2
+          done
+          docker compose -f compose-monitor.yaml exec -T monitor-api python create_user.py
+          docker compose -f compose-general.yaml exec -T general-api python create_user.py
+
+      - name: Capture networks and DNS
+        run: |
+          mkdir -p evidence
+          docker compose -f compose-monitor.yaml ps > evidence/ps-monitor.txt
+          docker compose -f compose-general.yaml ps > evidence/ps-general.txt
+          docker network inspect m5d1-events > evidence/network-inspect.json
+          docker compose -f compose-general.yaml exec -T general-api getent hosts monitor-api > evidence/dns-monitor-api.txt
+          test -s evidence/dns-monitor-api.txt
+
+      - name: Verify fresh login events and note
+        run: python scripts/smoke_test.py | tee evidence/smoke-before.txt
+
+      - name: Recreate without removing volumes
+        run: |
+          docker compose -f compose-general.yaml down
+          docker compose -f compose-monitor.yaml down
+          docker compose -f compose-monitor.yaml up -d
+          docker compose -f compose-general.yaml up -d
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8082/api/auth/me -o /dev/null; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Verify persistence after recreate
+        run: python scripts/smoke_test.py --after-restart | tee evidence/smoke-after.txt
+
+      - name: Capture logs on every outcome
+        if: always()
+        run: |
+          mkdir -p evidence
+          docker compose -f compose-monitor.yaml ps > evidence/final-ps-monitor.txt || true
+          docker compose -f compose-general.yaml ps > evidence/final-ps-general.txt || true
+          docker compose -f compose-monitor.yaml logs --tail=100 monitor-api > evidence/log-monitor.txt 2>&1 || true
+          docker compose -f compose-general.yaml logs --tail=100 general-api > evidence/log-general.txt 2>&1 || true
+
+      - name: Upload real evidence logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-compose-evidence
+          path: evidence/
+          if-no-files-found: warn
+
+      - name: Stop both Compose projects
+        if: always()
+        run: |
+          docker compose -f compose-general.yaml down || true
+          docker compose -f compose-monitor.yaml down || true
