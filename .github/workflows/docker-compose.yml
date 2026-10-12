@@ -52,10 +52,13 @@ jobs:
           test -s evidence/dns-monitor-api.txt
 
       - name: Verify fresh login events and note
-        run: python scripts/smoke_test.py | tee evidence/smoke-before.txt
+        run: |
+          set -o pipefail
+          python scripts/smoke_test.py 2>&1 | tee evidence/smoke-before.txt
 
       - name: Optional - DB DNS isolation
         run: |
+          set -o pipefail
           docker compose -f compose-general.yaml exec -T general-api getent hosts general-db | tee evidence/dns-general-db.txt
           if docker compose -f compose-general.yaml exec -T general-api getent hosts monitor-db > evidence/dns-monitor-db.txt; then
             echo "FAIL: monitor-db must be isolated from general-api"
@@ -65,6 +68,7 @@ jobs:
 
       - name: Optional - disconnect shared network and restore via Compose
         run: |
+          set -o pipefail
           docker network disconnect m5d1-events m5d1-general-general-api-1
           if docker compose -f compose-general.yaml exec -T general-api getent hosts monitor-api; then
             echo "FAIL: monitor-api still resolved after disconnection"
@@ -72,8 +76,16 @@ jobs:
           fi
           echo "PASS monitor-api DNS lookup fails after m5d1-events disconnect" | tee evidence/disconnect.txt
           docker compose -f compose-general.yaml up -d --force-recreate --no-deps general-api
+          # Nginx resolves its upstream at startup. When API is recreated,
+          # recreate its gateway too so the previous API IP is not cached.
+          docker compose -f compose-general.yaml up -d --force-recreate --no-deps general-gateway
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8081/api/auth/me -o /dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:8081/api/auth/me -o /dev/null
           docker compose -f compose-general.yaml exec -T general-api getent hosts monitor-api | tee evidence/dns-restored.txt
-          python scripts/smoke_test.py | tee evidence/smoke-after-network-restore.txt
+          python scripts/smoke_test.py 2>&1 | tee evidence/smoke-after-network-restore.txt
 
       - name: Recreate without removing volumes
         run: |
@@ -88,7 +100,9 @@ jobs:
           exit 1
 
       - name: Verify persistence after recreate
-        run: python scripts/smoke_test.py --after-restart | tee evidence/smoke-after.txt
+        run: |
+          set -o pipefail
+          python scripts/smoke_test.py --after-restart 2>&1 | tee evidence/smoke-after.txt
 
       - name: Capture logs on every outcome
         if: always()
