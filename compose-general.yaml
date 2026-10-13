@@ -28,6 +28,8 @@ services:
       DB_PASSWORD: sample-only-pass
       SECRET_KEY: sample-general-session-key-not-for-production
       MONITOR_URL: http://monitor-api:5000/api/events
+      EVENT_TOKEN: local-training-event-token-change-for-cloud-2026
+      SESSION_COOKIE_SECURE: 'false'
     depends_on:
       general-db:
         condition: service_healthy
