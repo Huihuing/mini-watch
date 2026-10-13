@@ -27,6 +27,8 @@ services:
       DB_USER: sample
       DB_PASSWORD: sample-only-pass
       SECRET_KEY: sample-monitor-session-key-not-for-production
+      EVENT_TOKEN: local-training-event-token-change-for-cloud-2026
+      SESSION_COOKIE_SECURE: 'false'
     depends_on:
       monitor-db:
         condition: service_healthy
