@@ -39,8 +39,8 @@ jobs:
             if curl -fsS http://localhost:8081/api/auth/me -o /dev/null; then break; fi
             sleep 2
           done
-          docker compose -f compose-monitor.yaml exec -T monitor-api python create_user.py
-          docker compose -f compose-general.yaml exec -T general-api python create_user.py
+          docker compose -f compose-monitor.yaml exec -T monitor-api python create_user.py --demo
+          docker compose -f compose-general.yaml exec -T general-api python create_user.py --demo
 
       - name: Capture networks and DNS
         run: |
