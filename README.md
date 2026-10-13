@@ -1,4 +1,19 @@
-# Mini Watch — Day 06 Docker Compose 과제
+# Mini Watch — Day1 Docker Compose + Day2 Cloud Deployment
+
+## Day2 배포 과제 (2026-10-13)
+
+**[Day2 배포 계획 및 코드 적용 상세](deployment-plan.md)** · 브랜치: [`day2-deploy`](https://github.com/Huihuing/mini-watch/tree/day2-deploy) · 현재 상태: **Render/Supabase/Sentry 계정 및 실제 외부 서비스 연결은 미완료, 소스/설정 준비 단계**.
+
+- Day1 두 Compose 및 기존 로그인·게시글·감시 이벤트·메모 기능을 유지하며 Render용 **일반 Flask/감시 Flask/감시 Next.js** 3개 Docker Web Service 설정을 추가했습니다.
+- Flask는 로컬 `python app.py`와 Render Waitress 모두 지원합니다. DB 환경 변수 `DB_*` 6개·Supabase SSL, `/health`, 세션 HTTPS 쿠키, Sentry SDK 초기화 및 인증된 `/api/sentry-test`를 적용합니다.
+- 일반→감시 기록 전송은 Render HTTPS `MONITOR_URL`과 공통 비밀 `EVENT_TOKEN`을 쓰며, Next는 서버 Route Handler의 `MONITOR_API_URL`로 감시 API와 연결합니다. 클라이언트에는 비밀 설정값을 내보내지 않습니다.
+- 배포용 비파괴 SQL `general/sql/deploy.sql`·`monitor/backend/sql/deploy.sql`, 앱별 `.env.example` 3개와 `deployment-plan.md`를 추가했습니다. **실제 Render URL·DB 비밀번호·토큰·Sentry DSN은 저장소에 없습니다.**
+- 클라우드용 계정은 Flask 폴더에서 `python create_user.py`로 **새 비밀번호를 입력**해 생성합니다. 아래 Day1 CI/로컬 전용 수업 계정을 만들려면 `python create_user.py --demo`를 사용합니다(로컬 DB 이름으로 제한).
+- 기존 Day1 Actions 성공은 Day2 배포 완료 증빙과 구분합니다. 자세한 준비·배포/오류 진단·테스트 순서는 `deployment-plan.md`를 확인하세요.
+
+---
+
+## Day1 — 두 Docker Compose 실습
 
 ## 기준과 직접 변경한 내용
 
@@ -45,11 +60,11 @@ curl.exe -i http://localhost:8082/api/auth/me
 # 감시 API가 준비되어 HTTP 200을 반환한 다음 일반 실행
 docker compose -f compose-general.yaml up -d --build
 
-docker compose -f compose-monitor.yaml exec monitor-api python create_user.py
-docker compose -f compose-general.yaml exec general-api python create_user.py
+docker compose -f compose-monitor.yaml exec monitor-api python create_user.py --demo
+docker compose -f compose-general.yaml exec general-api python create_user.py --demo
 ~~~
 
-실습용 계정: 일반 student / Learn123! ; 감시 operator / Learn123! (실제 운영에 사용하지 마세요).
+`--demo`는 로컬 Compose 전용입니다. 학습 계정은 일반 student / Learn123!, 감시 operator / Learn123!이며 실제 외부 배포에 사용하지 마세요.
 일반 서비스 /login 에서 로그인하고 게시글 화면으로 이동합니다. 감시 화면에서 로그인한 다음 '기록 불러오기'와 '목록 불러오기'를 사용합니다.
 
 PostgreSQL 초기 SQL은 DB 볼륨이 최초 생성되는 시점에만 실행됩니다. 컨테이너를 다시 만드는 것과 데이터를 삭제하는 것은 다릅니다. 특히 down -v는 사용하지 마세요.
